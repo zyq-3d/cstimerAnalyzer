@@ -6,7 +6,7 @@
 ## 安装
 
 ```shell
-git clone https://github.com/ultralytics/yolov5  # clone
+git clone https://github.com/zyq-3d/cstimerAnalyzer  # clone
 cd cstimerAnalyzer
 # conda create -n cstimer python==3.7 # 虚拟环境
 pip install -r requirements.txt  # 安装
