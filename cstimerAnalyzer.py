@@ -9,10 +9,13 @@
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
-from os import listdir
+import os
 from decimal import Decimal, ROUND_HALF_UP
 
 rc("font",family='MicroSoft YaHei',weight="bold")
+
+TXT_DEST = 'rawTXTs'
+RES_DEST = 'results'
 
 def loadWCA(files):
 	''' 读取WCA成绩
@@ -103,7 +106,7 @@ def draw(times, movingAVG, validAVG, file):
 	'''
 
 	###### 单次成绩&滑动五次平均序列
-	plt.figure(figsize=(13, 6))
+	fig = plt.figure(figsize=(13, 6))
 	plt.subplot(1,2,1)
 	plt.plot(times, label='单次成绩')  
 	plt.plot(range(5, len(times) + 1), movingAVG, label='滑动Ao5')
@@ -129,10 +132,11 @@ def draw(times, movingAVG, validAVG, file):
 	plt.title('Ao5走向图，优官方率: {:.2%}'.format(betterRate))  
 	plt.xlabel('Ao5次数')  
 	plt.ylabel('秒')  
-	plt.savefig('%s.png' % file.split('.')[0])
+	plt.show()
+	fig.savefig('%s.png' % os.path.join(RES_DEST, file.split('.')[0]))
 
 def analyze(file):
-	''' 分析成绩文件
+	''' 分析成绩文件，并将文件移动至rawTXTs
 	
 	param file: str, 待分析的txt文件路径
 	'''
@@ -142,12 +146,27 @@ def analyze(file):
 	times = line2time(lines) # 获取时间列表
 	movingAVG, validAVG = MAVG(times) # 获取滑动时间列表
 	draw(times, movingAVG, validAVG, file)
-	
+	os.rename(file, os.path.join(TXT_DEST, file))
+
+def checkDirs():
+	''' 检查是否有需要的文件夹，若无则生成
+
+	param files: list 根目录下所有文件
+	'''
+	# try: # rawTXTs文件夹是否生成 
+	#     os.makedirs("rawTXTs", exist_ok=True)  
+	# except FileExistsError:  
+	#     pass  
+	try: # 检查results文件夹是否生成
+	    os.makedirs("results", exist_ok=True)  
+	except FileExistsError:  
+	    pass  
 
 
 if __name__ == '__main__':
-	files = listdir('./')
+	files = os.listdir('./')
+	checkDirs()
 	WCA_AVG = loadWCA(files)
 	for file in files:
-		if file.endswith('.txt') and file != 'WCA.txt':
+		if file.endswith('.txt') and file != 'WCA.txt' and file != 'requirements.txt':
 			analyze(file)
