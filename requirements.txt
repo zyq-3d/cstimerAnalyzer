@@ -1,0 +1,5 @@
+# cstimerAnalyzer requirements
+# Usage: pip install -r requirements.txt
+
+# Base ------------------------------------------------------------------------
+matplotlib
