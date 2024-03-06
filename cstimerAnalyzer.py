@@ -5,30 +5,34 @@
 # Author: Zhu Yunqi
 # Version: ver0_1_1
 # Created: 2024/02/04
-# Description: Main Function: 读取cstimer成绩信息并做出分析：平均成绩曲线、五次滑动平均曲线、五次平均曲线以及pb率
+# Description: Main Function: 读取cstimer成绩信息并与WCA成绩比较做出分析：平均成绩曲线、五次滑动平均曲线、五次平均曲线以及pb率
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import os
 from decimal import Decimal, ROUND_HALF_UP
+import csv
 
 rc("font",family='MicroSoft YaHei',weight="bold")
 
 TXT_DEST = 'rawTXTs'
 RES_DEST = 'results'
+EVENTS = ['333', '222', '444', '555', '666', '777', 'oh', 'bld', 'sk', 'py', 'sq', 'clk', 'minx', '444bld', '555bld']
 
-def loadWCA(files):
+def loadWCA():
 	''' 读取WCA成绩
 
-	param files: list 当前文件夹下的文件
-	return WCA_AVG: float 读取到的wca成绩
+	return WCA: float 读取到的wca成绩
 	'''
-	for file in files:
-		if file == 'WCA.txt':
-			with open(file, 'r') as f:
-				WCA_AVG = float(f.read().split('\n')[0])
-	print('WCA Ao5: ' + str(WCA_AVG) + 's')
-	return WCA_AVG
+	wca = {}
+	with open('WCA.csv', 'r') as f:
+		rows = csv.reader(f)
+		for i, row in enumerate(rows):
+			if i == 0: continue # 第一行是表属性名
+			wca[row[0]] = [float(x) for x in row[1:]] # {event: [average, single]}
+			print('record for %s: %ss (Average), %ss (Single)'% (row[0], row[1], row[2]))
+	
+	return wca
 
 def line2time(lines):
 	''' 将文件中内容转换成成绩列表
@@ -106,17 +110,21 @@ def draw(times, movingAVG, validAVG, file):
 	'''
 
 	###### 单次成绩&滑动五次平均序列
+	wca_avg, wca_single = WCA[EVENT]
 	fig = plt.figure(figsize=(13, 6))
 	plt.subplot(1,2,1)
 	plt.plot(times, label='单次成绩')  
 	plt.plot(range(5, len(times) + 1), movingAVG, label='滑动Ao5')
-	# 添加水平虚线  
-	plt.axhline(y=WCA_AVG, color='r', linestyle='--', label='WCA Ao5: %s' %WCA_AVG)  
+	# 添加平均成绩水平虚线  
+	plt.axhline(y=wca_avg, color='r', linestyle='--', label='WCA Ao5: %s' %wca_avg)  
+	# 添加单次成绩水平虚线  
+	plt.axhline(y=wca_single, color='g', linestyle='--', label='WCA single: %s' %wca_single)  
 	# 添加图例  
 	plt.legend()  
 	# 添加标题和坐标轴标签  
-	betterRate = sum([x < WCA_AVG for x in movingAVG]) / len(movingAVG)
-	plt.title('单次成绩&滑动Ao5走向图，优官方率: {:.2%}'.format(betterRate))  
+	betterRate_avg = sum([x < wca_avg for x in movingAVG]) / len(movingAVG)
+	betterRate_single = sum([x < wca_single for x in times]) / len(times)
+	plt.title('单次成绩&滑动Ao5走向图, 平均优官方率: {:.2%}, 单次优官方率: {:.2%}'.format(betterRate_avg, betterRate_single))  
 	plt.xlabel('还原次数')  
 	plt.ylabel('秒')  
 
@@ -124,16 +132,16 @@ def draw(times, movingAVG, validAVG, file):
 	plt.subplot(1,2,2)
 	plt.plot(validAVG, label='Ao5')
 	# 添加水平虚线  
-	plt.axhline(y=WCA_AVG, color='r', linestyle='--', label='WCA Ao5: %s' %WCA_AVG)
+	plt.axhline(y=wca_avg, color='r', linestyle='--', label='WCA Ao5: %s' %wca_avg)
 	# 添加图例  
 	plt.legend()  
 	# 添加标题和坐标轴标签  
-	betterRate = sum([x < WCA_AVG for x in validAVG]) / len(validAVG)
-	plt.title('Ao5走向图，优官方率: {:.2%}'.format(betterRate))  
+	betterRate = sum([x < wca_avg for x in validAVG]) / len(validAVG)
+	plt.title('Ao5走向图，平均优官方率: {:.2%}'.format(betterRate))  
 	plt.xlabel('Ao5次数')  
 	plt.ylabel('秒')  
 	plt.show()
-	fig.savefig('%s.png' % os.path.join(RES_DEST, file.split('.')[0]))
+	fig.savefig('%s.png' % os.path.join(RES_DEST, EVENT, file.split('.')[0]))
 
 def analyze(file):
 	''' 分析成绩文件，并将文件移动至rawTXTs
@@ -146,27 +154,30 @@ def analyze(file):
 	times = line2time(lines) # 获取时间列表
 	movingAVG, validAVG = MAVG(times) # 获取滑动时间列表
 	draw(times, movingAVG, validAVG, file)
-	os.rename(file, os.path.join(TXT_DEST, file))
+	os.rename(file, os.path.join(TXT_DEST, EVENT, file))
 
-def checkDirs():
+def checkDir(file):
 	''' 检查是否有需要的文件夹，若无则生成
 
-	param files: list 根目录下所有文件
+	param file: str 待检查的路径
 	'''
-	# try: # rawTXTs文件夹是否生成 
-	#     os.makedirs("rawTXTs", exist_ok=True)  
-	# except FileExistsError:  
-	#     pass  
 	try: # 检查results文件夹是否生成
-	    os.makedirs("results", exist_ok=True)  
+	    os.makedirs(file, exist_ok=True)  
 	except FileExistsError:  
 	    pass  
 
 
 if __name__ == '__main__':
 	files = os.listdir('./')
-	checkDirs()
-	WCA_AVG = loadWCA(files)
+	checkDir(TXT_DEST)
+	checkDir(RES_DEST)
+	EVENT = input('请选择练习的项目(' + ', '.join(EVENTS) + '): ')
+	if EVENT not in EVENTS:
+		print('项目名称错误！')
+		exit()
+	checkDir(TXT_DEST+ '/' + EVENT)
+	checkDir(RES_DEST + '/' + EVENT)
+	WCA = loadWCA()
 	for file in files:
 		if file.endswith('.txt') and file != 'WCA.txt' and file != 'requirements.txt':
 			analyze(file)
